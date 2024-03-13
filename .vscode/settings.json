@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "header.h": "c",
+        "iphandle.h": "c",
+        "netfilter.h": "c"
+    }
+}
