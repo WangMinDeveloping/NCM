@@ -1,5 +1,4 @@
-#ifndef _DOUBLYLISTNODE_H
-#define _DOUBLYLISTNODE_H
+#pragma once
 template<typename TDataType>
 struct SDoublyListNode
 {
@@ -7,4 +6,3 @@ struct SDoublyListNode
 	SDoublyListNode<TDataType> *pPrev;
 	TDataType value;
 };
-#endif

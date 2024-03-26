@@ -1,5 +1,4 @@
-#ifndef KERNEL_API_H
-#define KERNEL_API_H
+#pragma once
 #include <linux/netfilter.h>
 #include <linux/init.h>
 #include <linux/cdev.h>
@@ -37,4 +36,3 @@ int regroupPackage(struct sk_buff *pPackage, SSocket *pDestinationSocket); // �
 // 组心跳包的函数。
 void sendHeartHop(SSocket *pDestinationSocket); // 后面写
 void OnlineTest(struct timer_list *arg);
-#endif

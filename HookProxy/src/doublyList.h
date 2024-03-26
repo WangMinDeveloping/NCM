@@ -1,5 +1,4 @@
-#ifndef _DOUBLYLIST_H
-#define _DOUBLYLIST_H
+#pragma once
 #include"doublyListNode.h"
 template<class TNodeType>
 class CDoublyList
@@ -83,4 +82,3 @@ int CDoublyList<TNodeType>::deleteNode(SDoublyListNode<TNodeType> *pNode)
 	delete pNode;
 	return 0;
 }
-#endif

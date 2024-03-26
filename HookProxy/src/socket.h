@@ -33,24 +33,24 @@ struct STransportLayerHeader
 {
 	SSocket *pDestinationSocket;
 	unsigned long long ullUserID;
-	int iPackageType;
+	enum EProtocol iPackageType;
 };
 
 // 用于UDP校验,UDP伪首部
-struct SUDPFakeHeader
-{
-	unsigned int uSourceIP;
-	unsigned int uArmIP;
-	unsigned char ucZero;
-	unsigned char ucProtocol;
-	unsigned short int wLen;
-};
+// struct SUDPFakeHeader
+// {
+// 	unsigned int uSourceIP;
+// 	unsigned int uArmIP;
+// 	unsigned char ucZero;
+// 	unsigned char ucProtocol;
+// 	unsigned short int wLen;
+// };
 #pragma pack()
 
-/*extern unsigned char aucArmMac[6];
-extern unsigned char aucSourceMac[6];//本机MAC
-extern unsigned int uSourceIP;
-extern unsigned short int wSourcePort;
-extern SSocket* (*pstServerSocket)[];
-extern void *pSocketMemoryPool;
-extern void *pAllSocketList;*/
+// extern unsigned char aucArmMac[6];
+// extern unsigned char aucSourceMac[6];//本机MAC
+// extern unsigned int uSourceIP;
+// extern unsigned short int wSourcePort;
+// extern SSocket* (*pstServerSocket)[];
+// extern void *pSocketMemoryPool;
+// extern void *pAllSocketList;

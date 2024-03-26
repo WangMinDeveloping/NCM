@@ -1,5 +1,4 @@
-#ifndef _UNLOCKQUEUE_
-#define _UNLOCKQUEUE_
+#pragma once
 class Queue
 {
 	public:
@@ -15,6 +14,5 @@ class Queue
 		int iMaximum; //原来是整型
 		void *(*pArray)[];
 
-};	
-#endif
+};
 

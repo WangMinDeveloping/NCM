@@ -1,7 +1,6 @@
 //==========================================
 // cppmod.h, exported C interface from C++ code
-#ifndef CPP_MOD_H
-#define CPP_MOD_H
+#pragma once
 #ifdef __cplusplus
 extern "C"
 {
@@ -27,5 +26,4 @@ extern "C"
 
 #ifdef __cplusplus
 }
-#endif
 #endif

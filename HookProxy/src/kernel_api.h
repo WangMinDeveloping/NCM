@@ -1,7 +1,6 @@
 // =========================================
 // kernel_api.h.
-#ifndef KERNEL_API_H
-#define KERNEL_API_H
+#pragma once
 #ifdef __cplusplus
 extern "C"
 {
@@ -14,5 +13,4 @@ extern "C"
 	extern void my_free(void *p);
 #ifdef __cplusplus
 }
-#endif
 #endif

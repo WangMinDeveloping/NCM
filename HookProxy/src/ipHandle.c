@@ -8,9 +8,10 @@ unsigned char aucArmMac[6];
 unsigned char aucSourceMac[6]; // 本机MAC
 unsigned int uSourceIP;
 unsigned short int wSourcePort;
-SSocket *(*pstServerSocket)[];
-void *pSocketMemoryPool;
-void *pAllSocketList;
+
+SSocket *(*pstServerSocket)[]; //后台服务器socket数组
+void *pSocketMemoryPool; //socket用户内存池
+void *pAllSocketList; //socket维活表
 
 SSocket *synAckHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader) { return 0; }
 
@@ -35,24 +36,23 @@ int checkSocket(struct STransportLayerHeader *pSelfTCPHeader)
 	// socket地址是否在申请的片空间范围内
 	if (pSelfTCPHeader->pDestinationSocket >= (SSocket *)getMinAddress(pSocketMemoryPool) && pSelfTCPHeader->pDestinationSocket < (SSocket *)getMaxAddress(pSocketMemoryPool))
 	{
-		if (((unsigned long long)(pSelfTCPHeader->pDestinationSocket) % sizeof(SSocket)) == 0)
+		if (((unsigned long long)(pSelfTCPHeader->pDestinationSocket) % sizeof(SSocket)) == 0) //这里比较严谨的做法应该是先减去minAddress，再对SSocket取余
 		{
 			if (pSelfTCPHeader->pDestinationSocket->ullUserID == pSelfTCPHeader->ullUserID)
+			{
 				return 2;
+			}
 			else
 			{
-#ifdef _DEBUG
 				printk("checkSocket ID对不上，可能用户已下线");
-#endif
 				return 1;
 			}
 		}
 	}
-#ifdef _DEBUG
 	printk("check Socket地址不正确\n");
-#endif
 	return 0;
 }
+
 // 返回值 0成功 1失败
 int regroupPackage(struct sk_buff *pPackage, SSocket *pDestinationSocket) // 重组数据包
 {
@@ -66,7 +66,7 @@ int regroupPackage(struct sk_buff *pPackage, SSocket *pDestinationSocket) // 重
 	pIPHeader->daddr = pDestinationSocket->uArmIPAddress;
 	pUDPHeader->dest = pDestinationSocket->wArmPort;
 
-	/*计算校验和*/
+	/*计算ip校验和*/
 	pIPHeader->check = 0;
 	pUDPHeader->check = 0;
 	pIPHeader->check = ip_fast_csum(pIPHeader, pIPHeader->ihl);
@@ -94,12 +94,12 @@ SSocket *serverSelfIntroduction(struct iphdr *pIPHeader, struct STransportLayerH
 	struct udphdr *pUDPHeader = (struct udphdr *)((char *)pIPHeader + pIPHeader->ihl * 4);
 	if (pSelfTCPHeader->ullUserID >= 0 && pSelfTCPHeader->ullUserID < SERVER_TOTAL) // 服务器ID正确
 	{
-		pServerSocket = (SSocket *)(pop_c(pSocketMemoryPool)); // 出栈一个socket空间
-		if (pServerSocket != NULL)							   // 出栈成功
+		pServerSocket = (SSocket *)(pop_c(pSocketMemoryPool)); 						// 出栈一个socket空间
+		if (pServerSocket != NULL)							   						// 出栈成功
 		{
 			pServerSocket->ullUserID = pSelfTCPHeader->ullUserID;
-			pServerSocket->uArmIPAddress = pIPHeader->saddr; // 大端
-			pServerSocket->wArmPort = pUDPHeader->source;	 // 大端
+			pServerSocket->uArmIPAddress = pIPHeader->saddr;  						// 大端
+			pServerSocket->wArmPort = pUDPHeader->source;	  						// 大端
 			pServerSocket->pHeartHopSelfNodeAddress = 0;
 
 			do_gettimeofday(&ts);
@@ -107,23 +107,25 @@ SSocket *serverSelfIntroduction(struct iphdr *pIPHeader, struct STransportLayerH
 			/*存储本机信息*/
 			memcpy((void *)aucArmMac, (void *)((unsigned char *)pIPHeader - 8), 6);
 			memcpy((void *)aucSourceMac, (void *)((unsigned char *)pIPHeader - 14), 6);
-			uSourceIP = pIPHeader->daddr;								   // 大端
-			wSourcePort = pUDPHeader->dest;								   // 大端
-			(*pstServerSocket)[pSelfTCPHeader->ullUserID] = pServerSocket; // 放入数组
-			pSelfTCPHeader->pDestinationSocket = pServerSocket;			   // 将服务器socket地址给服务器
+			uSourceIP = pIPHeader->daddr;								   			// 大端
+			wSourcePort = pUDPHeader->dest;								   			// 大端
+			(*pstServerSocket)[pSelfTCPHeader->ullUserID] = pServerSocket; 			// 放入数组
+			pSelfTCPHeader->pDestinationSocket = pServerSocket;			   			// 将服务器socket地址给服务器
 			return pServerSocket;
 		}
-#ifdef _DEBUG
 		else
+		{
 			printk("serverSelfIntroduction socket 栈空，无法接收用户的连接了\n");
-#endif
+		}
 	}
-#ifdef _DEBUG
 	else
+	{
 		printk("serverIntriduanction serverID不正确，包丢掉\n");
-#endif
+	}
+	
 	return 0;
 }
+
 // 返回值 0失败 非0成功
 SSocket *finHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader)
 {
@@ -137,14 +139,15 @@ SSocket *finAckHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *pSe
 {
 	if (checkSocket(pSelfTCPHeader) > 1) // socket地址正确
 	{
-		if (pSelfTCPHeader->pDestinationSocket->ullUserID >= SERVER_TOTAL) // 是用户的finACK
+		if (pSelfTCPHeader->pDestinationSocket->ullUserID >= SERVER_TOTAL) // 是用户的finACK，用户下线
 		{
 			doublyListDelete(pAllSocketList, pSelfTCPHeader->pDestinationSocket->pHeartHopSelfNodeAddress);
 		}
-		else
+		else //后台服务器下线
 		{
 			(*pstServerSocket)[pSelfTCPHeader->pDestinationSocket->ullUserID] = 0; // 服务器下线将数组置0
 		}
+
 		pSelfTCPHeader->pDestinationSocket->ullUserID = -1;			   // 回栈的socket的ullUserID置0
 		push_c(pSocketMemoryPool, pSelfTCPHeader->pDestinationSocket); // socket入栈，
 	}
@@ -161,6 +164,7 @@ SSocket *heartHopHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *p
 	}
 	return 0;
 }
+
 // 登录成功
 SSocket *loginSuccess(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader)
 {
@@ -201,7 +205,7 @@ SSocket *toLogin(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCP
 			pUserSocket->wArmPort = pUDPHeader->source;	   // 大端
 			pUserSocket->ullOnlineTime = ts.tv_sec;
 
-			pSelfTCPHeader->pDestinationSocket = pUserSocket; // 将用户的socket发送给登录注册服务器
+			pSelfTCPHeader->pDestinationSocket = pUserSocket; // 将用户的socket发送给登录注册服务器，他将带回来
 
 			pUserSocket->ullOnlineTime = ts.tv_sec; // 更新注册用户在线时间
 			return (*pstServerSocket)[0] > 0 ? (*pstServerSocket)[0] : 0;
@@ -209,15 +213,14 @@ SSocket *toLogin(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCP
 		else
 		{
 			push_c(pSocketMemoryPool, pUserSocket); // 刚出栈socket入栈，返回，空间不足
-#ifdef _DEBUG
 			printk("login succss 插入链表动态空间已耗尽\n");
-#endif
 		}
 	}
-#ifdef _DEBUG
 	else
+	{
 		printk("serverSelfIntroduction socket 栈空，无法接收用户的连接了\n");
-#endif
+	}
+
 	return 0;
 }
 
@@ -231,7 +234,6 @@ SSocket *toUser(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPH
 
 void sendHeartHop(SSocket *pDestinationSocket) // 后面写
 {
-
 	struct sk_buff *skb = NULL;
 	int size = 62; // mac+ip+udp+selfTCP
 	struct udphdr *udph;
@@ -297,17 +299,14 @@ void sendHeartHop(SSocket *pDestinationSocket) // 后面写
 	if (0 > dev_queue_xmit(skb))
 	{
 		kfree_skb(skb);
-#ifdef _DEBUG
 		printk("心跳包send out fail\n");
-#endif
 	}
 	else
 	{
-#ifdef _DEBUG
 		printk("心跳包 sendd out success\n");
-#endif
 	}
 }
+
 void OnlineTest(struct timer_list *arg)
 {
 	SSocket *pSocket;
@@ -325,8 +324,11 @@ void OnlineTest(struct timer_list *arg)
 			push_c(pSocketMemoryPool, pSocket);									 // socket入栈，
 		}
 		else if ((ts.tv_sec - pSocket->ullOnlineTime) > 60)
+		{
 			sendHeartHop(pSocket);
+		}
 	}
+
 	/*给服务器发心跳包*/
 	for (i = 0; i < SERVER_TOTAL; i++)
 	{
@@ -339,7 +341,9 @@ void OnlineTest(struct timer_list *arg)
 				(*pstServerSocket)[i] = 0;
 			}
 			else if ((ts.tv_sec - (*pstServerSocket)[i]->ullOnlineTime) > 60)
+			{
 				sendHeartHop((*pstServerSocket)[i]);
+			}
 		}
 	}
 	mod_timer(arg, jiffies + msecs_to_jiffies(1000 * 60)); // 循环定时一分钟
