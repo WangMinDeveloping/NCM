@@ -1,7 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netfilter.h>
-#include <linux/init.h>
+#include<linux/init.h>
 #include <linux/cdev.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/skbuff.h>
@@ -16,6 +16,8 @@
 #include <linux/inet.h>
 #include <linux/timer.h>
 #include <linux/tcp.h>
+#include <linux/time.h>
+#include <linux/ktime.h>
 #include "cppmod.h"
 #include "ipHandle.h"
 
@@ -35,30 +37,34 @@ typedef SSocket *(*packageHandle)(struct iphdr *, struct STransportLayerHeader *
 packageHandle aPackageHandle[ToUSER];// 定义一个函数指针数组，ToUSER是最大值，因为用户不会发出这种类型的数据，只有后台应用服务器会发
 
 /*出队线程*/
+/*出队线程*/
 int threadDeQueue(void *pThreadID)
 {
 	struct sk_buff *pPackage;
 	struct iphdr *pIPHeader;
-	struct STransportLayerHeader *pSelfTCPHeader;
+	struct udphdr *pUDPHeader;
+	struct SSocketAndID *pstSocketID;
+	unsigned short wPackageType;
 	SSocket *pDestinationSocket;
 	int iSendSuccess;
 	while (iExitFlag)
 	{
 		pPackage = (struct sk_buff *)deQueue_c(pQueue); // 出队一个数据包
-		if (pPackage != NULL)							
+		if (pPackage != NULL)							// 出队成功，非空
 		{
 			pIPHeader = ip_hdr(pPackage);
-			pSelfTCPHeader = (struct STransportLayerHeader *)((char *)pIPHeader + pIPHeader->ihl * 4 + 8);//ip数据报加上偏移找到自定义的传输层头部
-			if (pSelfTCPHeader->iPackageType >= PACKAGE_TYPE_INITIAL_VALUE && pSelfTCPHeader->iPackageType < ToUSER) // 校验包类型是否正确
+			pUDPHeader = udp_hdr(pPackage);
+			wPackageType = pUDPHeader->len; // 跳过端口，找到包类型
+
+			if (wPackageType >= PACKAGE_TYPE_INITIAL_VALUE && wPackageType <= ToUser) // 校验包类型是否正确
 			{
-				pDestinationSocket = aPackageHandle[pSelfTCPHeader->iPackageType](pIPHeader, pSelfTCPHeader);//这里采用的是哈希数组
+				pstSocketID = (struct SSocketAndID *)((char *)pIPHeader + pIPHeader->ihl * 4 + 24); // 偏移找到socket首地址
+				pDestinationSocket = aPackageHandle[wPackageType](pPackage, pstSocketID);
 				if (pDestinationSocket > (SSocket *)1) // 返回的目的socket正确
 				{
-					iSendSuccess = regroupPackage(pPackage, pDestinationSocket);//将数据包重组发送到后台服务器
+					iSendSuccess = regroupPackage(pPackage, pDestinationSocket);
 					if (iSendSuccess == 1)
-					{
 						printk("发送数据包失败\n");
-					}
 				}
 			}
 			else
@@ -66,9 +72,14 @@ int threadDeQueue(void *pThreadID)
 				printk("包类型不符合协议\n");
 			}
 		}
+		else // 队空
+		{
+			msleep(0);
+		}
 	}
 	return 0;
 }
+
 
 unsigned int my_hook_func_in(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {

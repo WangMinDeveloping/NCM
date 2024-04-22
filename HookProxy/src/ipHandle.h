@@ -15,23 +15,25 @@
 #include <linux/time.h>
 #include <linux/kernel.h>
 #include "socket.h"
+typedef SSocket *(*packageHandle)(struct sk_buff *, struct SSocketAndID *); // 声明一个函数指针
+extern packageHandle aPackageHandle[];                                      // 定义一个函数指针数组，大小是ToUser大小
 
-void createSocketMemoryPool(void);
-void destorySocketMemoryPool(void);
+void gatewayInit(void);
+void gatewayDestroy(void);
 
-SSocket *serverSelfIntroduction(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
-SSocket *finHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
-SSocket *synAckHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader); // 暂时空着
-SSocket *finAckHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
+SSocket *serverSelfIntroduction(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
+SSocket *finHandle(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
+SSocket *finAckHandle(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
 
-SSocket *heartHopHandle(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
-SSocket *toLogin(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
-SSocket *toFTP(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
-SSocket *loginSuccess(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
-SSocket *toUser(struct iphdr *pIPHeader, struct STransportLayerHeader *pSelfTCPHeader);
+SSocket *heartHopHandle(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
+SSocket *toLogin(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
+SSocket *toFTP(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
+SSocket *loginSuccess(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
+SSocket *toUser(struct sk_buff *pPackage, struct SSocketAndID *pstSocketID);
 
-int checkSocket(struct STransportLayerHeader *pSelfTCPHeader);             // 校验socket地址是否正确，id是否对的上，， 返回值 1正确，0 错误的
+int checkSocket(struct SSocketAndID *pstSocketID);                         // 校验socket地址是否正确，id是否对的上，， 返回值 1正确，0 错误的
 int regroupPackage(struct sk_buff *pPackage, SSocket *pDestinationSocket); // 重组数据包
+void sendPackage(struct sk_buff *pPackage);
 
 // 组心跳包的函数。
 void sendHeartHop(SSocket *pDestinationSocket); // 后面写

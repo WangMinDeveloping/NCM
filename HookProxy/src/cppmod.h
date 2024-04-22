@@ -1,6 +1,5 @@
-//==========================================
-// cppmod.h, exported C interface from C++ code
-#pragma once
+#ifndef CPP_MOD_H
+#define CPP_MOD_H
 #ifdef __cplusplus
 extern "C"
 {
@@ -18,12 +17,14 @@ extern "C"
     extern void *getMinAddress(void *pMemoryPool);
     extern void *getMaxAddress(void *pMemoryPool);
 
-    extern int doublyListDelete(void *pList, void *pMember);
-    extern void *doublyListInsert(void *pList, void *pMember);
-    extern void doublyListDestory(void *pList);
-    extern void *doublyListInit(void);
-    extern void *doublyListIterator(void *pList);
+    extern int DoublyListDelete(void *pList, void *pMember);
+    extern void *DoublyListInsert(void *pList, void *pMember);
+    extern void DoublyListDestory(void *pList);
+    extern void *DoublyListInit(void);
+    extern void *DoublyListIterator(void *pList);
+    extern void __cxa_pure_virtual(void);
 
 #ifdef __cplusplus
 }
+#endif
 #endif
